@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "app-builder": {
+      "enabled": true
+    }
+  }
+}
