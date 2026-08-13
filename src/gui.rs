@@ -111,6 +111,21 @@ impl ClipStashApp {
     }
 }
 
+fn preview_text(content: &str) -> String {
+    let lines: Vec<&str> = content.lines().take(3).collect();
+    let mut preview = lines.join("\n");
+    let total_lines = content.lines().count();
+    if total_lines > 3 || content.len() > 200 {
+        if preview.len() > 195 {
+            preview.truncate(195);
+            preview.push_str("...");
+        } else {
+            preview.push_str("\n...");
+        }
+    }
+    preview
+}
+
 impl eframe::App for ClipStashApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Periodically monitor clipboard changes
@@ -296,6 +311,7 @@ impl eframe::App for ClipStashApp {
                             .rounding(egui::Rounding::same(8.0))
                             .inner_margin(10.0)
                             .show(ui, |ui| {
+                                // Row 1: Header Bar (Pin, Item Info, Delete & Copy Buttons)
                                 ui.horizontal(|ui| {
                                     // Pin Button
                                     let pin_icon = if pinned { "📌" } else { "📍" };
@@ -307,43 +323,56 @@ impl eframe::App for ClipStashApp {
                                         pin_btn.on_hover_text(if pinned { "Unpin item" } else { "Pin item" });
                                     }
 
-                                    // Content Text (Clickable to copy)
-                                    let available_w = ui.available_width() - 70.0;
-                                    let text_label = ui.add_sized(
-                                        [available_w, 0.0],
-                                        egui::SelectableLabel::new(
-                                            false,
-                                            egui::RichText::new(&content).color(egui::Color32::from_rgb(241, 245, 249)),
-                                        ),
-                                    );
+                                    // Content Info Badge
+                                    let line_count = content.lines().count();
+                                    let badge = if line_count > 1 {
+                                        format!("{} lines", line_count)
+                                    } else {
+                                        format!("{} chars", content.chars().count())
+                                    };
+                                    ui.label(egui::RichText::new(badge).small().color(egui::Color32::from_rgb(148, 163, 184)));
 
-                                    if text_label.clicked() {
-                                        self.copy_to_clipboard(&content);
-                                    }
-
+                                    // Top-Right Action Buttons (ALWAYS visible at top of card!)
                                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                         // Delete Button
                                         let del_btn = ui.button(
-                                            egui::RichText::new("🗑")
+                                            egui::RichText::new("🗑 Delete")
+                                                .small()
                                                 .color(egui::Color32::from_rgb(248, 113, 113)),
                                         );
                                         if del_btn.clicked() {
                                             self.delete_entry(id);
                                         }
                                         if del_btn.hovered() {
-                                            del_btn.on_hover_text("Delete entry");
+                                            del_btn.on_hover_text("Delete entry from history");
                                         }
 
                                         // Copy Button
-                                        let copy_btn = ui.button("📋");
+                                        let copy_btn = ui.button(egui::RichText::new("📋 Copy").small());
                                         if copy_btn.clicked() {
                                             self.copy_to_clipboard(&content);
                                         }
                                         if copy_btn.hovered() {
-                                            copy_btn.on_hover_text("Copy to clipboard");
+                                            copy_btn.on_hover_text("Copy full content");
                                         }
                                     });
                                 });
+
+                                ui.add_space(4.0);
+
+                                // Row 2: Text Body Preview (Truncated/Wrapped, Clickable to copy full text)
+                                let preview = preview_text(&content);
+                                let text_label = egui::SelectableLabel::new(
+                                    false,
+                                    egui::RichText::new(&preview).color(egui::Color32::from_rgb(241, 245, 249)),
+                                );
+                                let resp = ui.add_sized([ui.available_width(), 0.0], text_label);
+                                if resp.clicked() {
+                                    self.copy_to_clipboard(&content);
+                                }
+                                if resp.hovered() {
+                                    resp.on_hover_text("Click to copy full text");
+                                }
                             });
 
                         ui.add_space(6.0);
