@@ -1,6 +1,8 @@
 mod clipboard;
 mod cli;
+mod gui;
 mod storage;
+
 
 use anyhow::Result;
 

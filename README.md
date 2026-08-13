@@ -4,12 +4,14 @@ A fast, keyboard-first clipboard history manager for Wayland/Linux.
 
 ## Features
 
+- **Floating GUI Window**: Launch interactive overlay window with single-click copy & deletion
 - **Clipboard Monitoring**: Automatically captures clipboard content
-- **History Management**: Keep track of copied text with timestamps
-- **Search**: Find previously copied content quickly
-- **Pin**: Keep important items in history
-- **CLI Interface**: Fast keyboard-driven workflow
-- **Wayland Support**: Works on GNOME, Hyprland, Sway, and other Wayland compositors
+- **History Management**: Keep track of copied text
+- **Search & Filter**: Find previously copied content instantly
+- **Pin Entries**: Keep important items pinned in history
+- **CLI & GUI Interface**: Fast keyboard-driven CLI and visual GUI floating window
+- **Wayland & X11 Support**: Works seamlessly on GNOME, Hyprland, Sway, KDE, etc.
+
 
 ## Installation
 
@@ -38,11 +40,19 @@ flatpak install flathub com.clipstash.ClipStash
 
 ## Usage
 
-### Start the Daemon
+### Launch Floating GUI Window
+```bash
+# Launch the floating window GUI (default when run without arguments)
+clipstash
+# or explicitly:
+clipstash gui
+```
 
+### Start the Daemon
 ```bash
 clipstash daemon
 ```
+
 
 The daemon runs in the background and monitors your clipboard for changes.
 

@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 use crate::clipboard::ClipboardMonitor;
+use crate::gui;
 use crate::storage::ClipboardHistory;
 
 #[derive(Parser)]
@@ -15,11 +16,14 @@ pub struct Cli {
     pub history_file: Option<String>,
 
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Launch the floating GUI clipboard manager
+    Gui,
+
     /// Start the clipboard monitoring daemon
     Daemon {
         /// Maximum number of clipboard entries to keep
@@ -71,7 +75,10 @@ pub fn run() -> Result<()> {
             .with_context(|| format!("Failed to create directory {}", parent.display()))?;
     }
 
-    match cli.command {
+    match cli.command.unwrap_or(Commands::Gui) {
+        Commands::Gui => {
+            gui::run_gui(history_path)?;
+        }
         Commands::Daemon { max_entries } => {
             run_daemon(&history_path, max_entries)?;
         }
@@ -94,6 +101,7 @@ pub fn run() -> Result<()> {
 
     Ok(())
 }
+
 
 fn run_daemon(history_path: &PathBuf, _max_entries: usize) -> Result<()> {
     println!("Starting ClipStash daemon...");

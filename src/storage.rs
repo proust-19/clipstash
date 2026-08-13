@@ -97,6 +97,21 @@ impl ClipboardHistory {
         self.entries.iter().find(|e| e.id == id)
     }
 
+    pub fn delete_entry(&mut self, id: u64) -> bool {
+        let initial_len = self.entries.len();
+        self.entries.retain(|e| e.id != id);
+        self.entries.len() < initial_len
+    }
+
+    pub fn toggle_pin(&mut self, id: u64) -> bool {
+        if let Some(entry) = self.entries.iter_mut().find(|e| e.id == id) {
+            entry.pinned = !entry.pinned;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn clear(&mut self) {
         self.entries.retain(|e| e.pinned);
     }
@@ -113,3 +128,36 @@ impl ClipboardHistory {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_add_and_delete_entry() {
+        let mut history = ClipboardHistory::new(10);
+        history.add_entry("test content 1".to_string());
+        history.add_entry("test content 2".to_string());
+        assert_eq!(history.list().len(), 2);
+
+        let id_to_delete = history.list()[0].id;
+        assert!(history.delete_entry(id_to_delete));
+        assert_eq!(history.list().len(), 1);
+        assert!(history.get_entry(id_to_delete).is_none());
+    }
+
+    #[test]
+    fn test_toggle_pin() {
+        let mut history = ClipboardHistory::new(10);
+        history.add_entry("pinned entry".to_string());
+        let id = history.list()[0].id;
+        assert!(!history.list()[0].pinned);
+
+        history.toggle_pin(id);
+        assert!(history.list()[0].pinned);
+
+        history.toggle_pin(id);
+        assert!(!history.list()[0].pinned);
+    }
+}
+
