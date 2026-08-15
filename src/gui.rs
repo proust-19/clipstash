@@ -1,5 +1,6 @@
 use anyhow::Result;
 use eframe::egui;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -35,6 +36,7 @@ struct ClipStashApp {
     toast: Option<(String, Instant)>,
     is_expanded: bool,
     always_on_top: bool,
+    expanded_items: HashSet<u64>,
 }
 
 impl ClipStashApp {
@@ -56,6 +58,7 @@ impl ClipStashApp {
                 toast: None,
                 is_expanded: true,
                 always_on_top: true,
+                expanded_items: HashSet::new(),
             };
         }
 
@@ -67,6 +70,7 @@ impl ClipStashApp {
             toast: None,
             is_expanded: true,
             always_on_top: true,
+            expanded_items: HashSet::new(),
         }
     }
 
@@ -111,21 +115,6 @@ impl ClipStashApp {
     }
 }
 
-fn preview_text(content: &str) -> String {
-    let lines: Vec<&str> = content.lines().take(3).collect();
-    let mut preview = lines.join("\n");
-    let total_lines = content.lines().count();
-    if total_lines > 3 || content.len() > 200 {
-        if preview.len() > 195 {
-            preview.truncate(195);
-            preview.push_str("...");
-        } else {
-            preview.push_str("\n...");
-        }
-    }
-    preview
-}
-
 impl eframe::App for ClipStashApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Periodically monitor clipboard changes
@@ -149,7 +138,11 @@ impl eframe::App for ClipStashApp {
         // Render Collapsed Floating Desktop Bubble ("Chat Head Widget") Mode
         if !self.is_expanded {
             egui::CentralPanel::default()
-                .frame(egui::Frame::none().inner_margin(4.0).fill(egui::Color32::from_rgb(18, 22, 32)))
+                .frame(
+                    egui::Frame::none()
+                        .inner_margin(4.0)
+                        .fill(egui::Color32::from_rgb(18, 22, 32)),
+                )
                 .show(ctx, |ui| {
                     ui.centered_and_justified(|ui| {
                         let total = self.history.list().len();
@@ -157,19 +150,24 @@ impl eframe::App for ClipStashApp {
 
                         let bubble_frame = egui::Frame::none()
                             .fill(egui::Color32::from_rgb(30, 41, 59))
-                            .stroke(egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(96, 165, 250)))
+                            .stroke(egui::Stroke::new(
+                                1.5_f32,
+                                egui::Color32::from_rgb(96, 165, 250),
+                            ))
                             .rounding(egui::Rounding::same(20.0))
                             .inner_margin(egui::Margin::symmetric(12.0, 8.0));
 
-                        let resp = bubble_frame.show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    egui::RichText::new(&bubble_text)
-                                        .strong()
-                                        .color(egui::Color32::from_rgb(96, 165, 250)),
-                                );
-                            });
-                        }).response;
+                        let resp = bubble_frame
+                            .show(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label(
+                                        egui::RichText::new(&bubble_text)
+                                            .strong()
+                                            .color(egui::Color32::from_rgb(96, 165, 250)),
+                                    );
+                                });
+                            })
+                            .response;
 
                         if resp.clicked() || ui.button("✨ Expand").clicked() {
                             self.expand(ctx);
@@ -183,11 +181,19 @@ impl eframe::App for ClipStashApp {
 
         // Render Expanded Full Window Mode
         egui::TopBottomPanel::top("header_panel")
-            .frame(egui::Frame::none().inner_margin(12.0).fill(egui::Color32::from_rgb(18, 22, 32)))
+            .frame(
+                egui::Frame::none()
+                    .inner_margin(12.0)
+                    .fill(egui::Color32::from_rgb(18, 22, 32)),
+            )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.heading(egui::RichText::new("📋 ClipStash").strong().color(egui::Color32::from_rgb(96, 165, 250)));
-                    
+                    ui.heading(
+                        egui::RichText::new("📋 ClipStash")
+                            .strong()
+                            .color(egui::Color32::from_rgb(96, 165, 250)),
+                    );
+
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         // Collapse to Bubble Button
                         if ui.button(egui::RichText::new("➖ Bubble").small()).clicked() {
@@ -195,7 +201,11 @@ impl eframe::App for ClipStashApp {
                         }
 
                         // Always-on-top toggle
-                        let top_icon = if self.always_on_top { "📌 Pinned" } else { "📍 Float" };
+                        let top_icon = if self.always_on_top {
+                            "📌 Pinned"
+                        } else {
+                            "📍 Float"
+                        };
                         if ui.button(egui::RichText::new(top_icon).small()).clicked() {
                             self.always_on_top = !self.always_on_top;
                             let level = if self.always_on_top {
@@ -207,7 +217,11 @@ impl eframe::App for ClipStashApp {
                         }
 
                         let total = self.history.list().len();
-                        ui.label(egui::RichText::new(format!("{} items", total)).small().color(egui::Color32::from_rgb(148, 163, 184)));
+                        ui.label(
+                            egui::RichText::new(format!("{} items", total))
+                                .small()
+                                .color(egui::Color32::from_rgb(148, 163, 184)),
+                        );
                     });
                 });
 
@@ -239,7 +253,11 @@ impl eframe::App for ClipStashApp {
                             .inner_margin(6.0)
                             .show(ui, |ui| {
                                 ui.centered_and_justified(|ui| {
-                                    ui.label(egui::RichText::new(msg).strong().color(egui::Color32::WHITE));
+                                    ui.label(
+                                        egui::RichText::new(msg)
+                                            .strong()
+                                            .color(egui::Color32::WHITE),
+                                    );
                                 });
                             });
                     } else {
@@ -249,7 +267,11 @@ impl eframe::App for ClipStashApp {
             });
 
         egui::TopBottomPanel::bottom("footer_panel")
-            .frame(egui::Frame::none().inner_margin(8.0).fill(egui::Color32::from_rgb(18, 22, 32)))
+            .frame(
+                egui::Frame::none()
+                    .inner_margin(8.0)
+                    .fill(egui::Color32::from_rgb(18, 22, 32)),
+            )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(
@@ -258,7 +280,14 @@ impl eframe::App for ClipStashApp {
                             .color(egui::Color32::from_rgb(148, 163, 184)),
                     );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button(egui::RichText::new("Clear History").small().color(egui::Color32::from_rgb(248, 113, 113))).clicked() {
+                        if ui
+                            .button(
+                                egui::RichText::new("Clear History")
+                                    .small()
+                                    .color(egui::Color32::from_rgb(248, 113, 113)),
+                            )
+                            .clicked()
+                        {
                             self.clear_unpinned();
                         }
                     });
@@ -266,10 +295,15 @@ impl eframe::App for ClipStashApp {
             });
 
         egui::CentralPanel::default()
-            .frame(egui::Frame::none().inner_margin(8.0).fill(egui::Color32::from_rgb(26, 32, 46)))
+            .frame(
+                egui::Frame::none()
+                    .inner_margin(8.0)
+                    .fill(egui::Color32::from_rgb(26, 32, 46)),
+            )
             .show(ctx, |ui| {
                 let query = self.search_query.trim().to_lowercase();
-                let entries: Vec<_> = self.history
+                let entries: Vec<_> = self
+                    .history
                     .list()
                     .iter()
                     .rev()
@@ -280,8 +314,12 @@ impl eframe::App for ClipStashApp {
                 if entries.is_empty() {
                     ui.centered_and_justified(|ui| {
                         ui.label(
-                            egui::RichText::new(if query.is_empty() { "No clipboard entries yet.\nCopy something to get started!" } else { "No matching entries found." })
-                                .color(egui::Color32::from_rgb(148, 163, 184)),
+                            egui::RichText::new(if query.is_empty() {
+                                "No clipboard entries yet.\nCopy something to get started!"
+                            } else {
+                                "No matching entries found."
+                            })
+                            .color(egui::Color32::from_rgb(148, 163, 184)),
                         );
                     });
                     return;
@@ -292,6 +330,8 @@ impl eframe::App for ClipStashApp {
                         let id = entry.id;
                         let content = entry.content.clone();
                         let pinned = entry.pinned;
+                        let is_item_expanded = self.expanded_items.contains(&id);
+                        let total_lines = content.lines().count();
 
                         let card_bg = if pinned {
                             egui::Color32::from_rgb(45, 42, 30)
@@ -311,7 +351,10 @@ impl eframe::App for ClipStashApp {
                             .rounding(egui::Rounding::same(8.0))
                             .inner_margin(10.0)
                             .show(ui, |ui| {
-                                // Row 1: Header Bar (Pin, Item Info, Delete & Copy Buttons)
+                                // Enable text wrapping within the card
+                                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+
+                                // Row 1: Action Buttons (Copy & Delete) right-aligned
                                 ui.horizontal(|ui| {
                                     // Pin Button
                                     let pin_icon = if pinned { "📌" } else { "📍" };
@@ -320,58 +363,100 @@ impl eframe::App for ClipStashApp {
                                         self.toggle_pin(id);
                                     }
                                     if pin_btn.hovered() {
-                                        pin_btn.on_hover_text(if pinned { "Unpin item" } else { "Pin item" });
+                                        pin_btn.on_hover_text(if pinned {
+                                            "Unpin item"
+                                        } else {
+                                            "Pin item"
+                                        });
                                     }
 
                                     // Content Info Badge
-                                    let line_count = content.lines().count();
-                                    let badge = if line_count > 1 {
-                                        format!("{} lines", line_count)
+                                    let badge = if total_lines > 1 {
+                                        format!("{} lines", total_lines)
                                     } else {
                                         format!("{} chars", content.chars().count())
                                     };
-                                    ui.label(egui::RichText::new(badge).small().color(egui::Color32::from_rgb(148, 163, 184)));
+                                    ui.label(
+                                        egui::RichText::new(badge)
+                                            .small()
+                                            .color(egui::Color32::from_rgb(148, 163, 184)),
+                                    );
 
-                                    // Top-Right Action Buttons (ALWAYS visible at top of card!)
-                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                        // Delete Button
-                                        let del_btn = ui.button(
-                                            egui::RichText::new("🗑 Delete")
-                                                .small()
-                                                .color(egui::Color32::from_rgb(248, 113, 113)),
-                                        );
-                                        if del_btn.clicked() {
-                                            self.delete_entry(id);
+                                    // Expand / Collapse Full Text Toggle Button
+                                    if total_lines > 2 {
+                                        let toggle_text = if is_item_expanded {
+                                            "▲ Collapse"
+                                        } else {
+                                            "▼ Expand"
+                                        };
+                                        if ui
+                                            .button(
+                                                egui::RichText::new(toggle_text)
+                                                    .small()
+                                                    .color(egui::Color32::from_rgb(96, 165, 250)),
+                                            )
+                                            .clicked()
+                                        {
+                                            if is_item_expanded {
+                                                self.expanded_items.remove(&id);
+                                            } else {
+                                                self.expanded_items.insert(id);
+                                            }
                                         }
-                                        if del_btn.hovered() {
-                                            del_btn.on_hover_text("Delete entry from history");
-                                        }
+                                    }
 
-                                        // Copy Button
-                                        let copy_btn = ui.button(egui::RichText::new("📋 Copy").small());
-                                        if copy_btn.clicked() {
-                                            self.copy_to_clipboard(&content);
-                                        }
-                                        if copy_btn.hovered() {
-                                            copy_btn.on_hover_text("Copy full content");
-                                        }
-                                    });
+                                    // Right-aligned Copy & Delete buttons
+                                    ui.with_layout(
+                                        egui::Layout::right_to_left(egui::Align::Center),
+                                        |ui| {
+                                            // Delete Button
+                                            let del_btn = ui.button(
+                                                egui::RichText::new("🗑")
+                                                    .color(egui::Color32::from_rgb(248, 113, 113)),
+                                            );
+                                            if del_btn.clicked() {
+                                                self.delete_entry(id);
+                                            }
+                                            if del_btn.hovered() {
+                                                del_btn.on_hover_text("Delete entry");
+                                            }
+
+                                            // Copy Button
+                                            let copy_btn =
+                                                ui.button(egui::RichText::new("📋"));
+                                            if copy_btn.clicked() {
+                                                self.copy_to_clipboard(&content);
+                                            }
+                                            if copy_btn.hovered() {
+                                                copy_btn.on_hover_text("Copy full content");
+                                            }
+                                        },
+                                    );
                                 });
 
                                 ui.add_space(4.0);
 
-                                // Row 2: Text Body Preview (Truncated/Wrapped, Clickable to copy full text)
-                                let preview = preview_text(&content);
-                                let text_label = egui::SelectableLabel::new(
-                                    false,
-                                    egui::RichText::new(&preview).color(egui::Color32::from_rgb(241, 245, 249)),
+                                // Row 2: Text Body Preview with wrapping
+                                let display_text = if is_item_expanded {
+                                    content.clone()
+                                } else {
+                                    let first_2: Vec<&str> = content.lines().take(2).collect();
+                                    let mut s = first_2.join("\n");
+                                    if total_lines > 2 {
+                                        s.push_str("\n...");
+                                    }
+                                    s
+                                };
+
+                                let text_label = ui.label(
+                                    egui::RichText::new(&display_text)
+                                        .color(egui::Color32::from_rgb(241, 245, 249)),
                                 );
-                                let resp = ui.add_sized([ui.available_width(), 0.0], text_label);
-                                if resp.clicked() {
+                                if text_label.clicked() {
                                     self.copy_to_clipboard(&content);
                                 }
-                                if resp.hovered() {
-                                    resp.on_hover_text("Click to copy full text");
+                                if text_label.hovered() {
+                                    text_label.on_hover_text("Click to copy full text");
                                 }
                             });
 

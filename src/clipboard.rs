@@ -2,21 +2,16 @@ use anyhow::{Context, Result};
 use arboard::Clipboard;
 
 pub struct ClipboardMonitor {
-    // Store the last clipboard content to detect changes
     last_content: Option<String>,
 }
 
 impl ClipboardMonitor {
     pub fn new() -> Self {
-        Self {
-            last_content: None,
-        }
+        Self { last_content: None }
     }
 
-    /// Get the current clipboard text content
     pub fn get_current_content(&self) -> Result<Option<String>> {
-        let mut clipboard = Clipboard::new()
-            .with_context(|| "Failed to initialize clipboard")?;
+        let mut clipboard = Clipboard::new().with_context(|| "Failed to initialize clipboard")?;
 
         match clipboard.get_text() {
             Ok(content) => {
@@ -30,18 +25,16 @@ impl ClipboardMonitor {
         }
     }
 
-    /// Copy text to clipboard
     pub fn set_content(&self, text: &str) -> Result<()> {
-        let mut clipboard = Clipboard::new()
-            .with_context(|| "Failed to initialize clipboard")?;
+        let mut clipboard = Clipboard::new().with_context(|| "Failed to initialize clipboard")?;
 
-        clipboard.set_text(text)
+        clipboard
+            .set_text(text)
             .with_context(|| "Failed to copy to clipboard")?;
 
         Ok(())
     }
 
-    /// Check if clipboard content has changed
     pub fn has_changed(&mut self) -> bool {
         match self.get_current_content() {
             Ok(Some(content)) => {
@@ -58,7 +51,6 @@ impl ClipboardMonitor {
         }
     }
 
-    /// Get the last known content
     pub fn last_content(&self) -> Option<&str> {
         self.last_content.as_deref()
     }
