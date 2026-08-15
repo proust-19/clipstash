@@ -325,7 +325,11 @@ impl eframe::App for ClipStashApp {
                     return;
                 }
 
-                egui::ScrollArea::vertical().show(ui, |ui| {
+                let available_w = ui.available_width();
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                    ui.set_max_width(available_w);
                     for entry in entries {
                         let id = entry.id;
                         let content = entry.content.clone();
@@ -351,7 +355,8 @@ impl eframe::App for ClipStashApp {
                             .rounding(egui::Rounding::same(8.0))
                             .inner_margin(10.0)
                             .show(ui, |ui| {
-                                // Enable text wrapping within the card
+                                // Constrain card content to available width and enable wrapping
+                                ui.set_max_width(ui.available_width());
                                 ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
 
                                 // Row 1: Action Buttons (Copy & Delete) right-aligned
@@ -448,9 +453,13 @@ impl eframe::App for ClipStashApp {
                                     s
                                 };
 
-                                let text_label = ui.label(
-                                    egui::RichText::new(&display_text)
-                                        .color(egui::Color32::from_rgb(241, 245, 249)),
+                                let text_label = ui.add(
+                                    egui::Label::new(
+                                        egui::RichText::new(&display_text)
+                                            .color(egui::Color32::from_rgb(241, 245, 249)),
+                                    )
+                                    .wrap()
+                                    .sense(egui::Sense::click()),
                                 );
                                 if text_label.clicked() {
                                     self.copy_to_clipboard(&content);
