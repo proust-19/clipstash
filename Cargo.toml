@@ -14,4 +14,6 @@ dirs = "5"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 eframe = "0.29"
+regex = "1"
+lazy_static = "1"
 

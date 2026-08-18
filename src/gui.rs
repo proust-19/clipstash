@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use crate::clipboard::ClipboardMonitor;
+use crate::sensitive;
 use crate::storage::ClipboardHistory;
 
 pub fn run_gui(history_path: PathBuf) -> Result<()> {
@@ -36,6 +37,8 @@ struct ClipStashApp {
     toast: Option<(String, Instant)>,
     is_expanded: bool,
     always_on_top: bool,
+    is_paused: bool,
+    sensitive_skipped: u32,
     expanded_items: HashSet<u64>,
 }
 
@@ -58,6 +61,8 @@ impl ClipStashApp {
                 toast: None,
                 is_expanded: true,
                 always_on_top: true,
+                is_paused: false,
+                sensitive_skipped: 0,
                 expanded_items: HashSet::new(),
             };
         }
@@ -70,6 +75,8 @@ impl ClipStashApp {
             toast: None,
             is_expanded: true,
             always_on_top: true,
+            is_paused: false,
+            sensitive_skipped: 0,
             expanded_items: HashSet::new(),
         }
     }
@@ -107,23 +114,46 @@ impl ClipStashApp {
     fn expand(&mut self, ctx: &egui::Context) {
         self.is_expanded = true;
         ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(440.0, 600.0)));
+        if self.always_on_top {
+            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::AlwaysOnTop));
+        }
     }
 
     fn collapse_to_bubble(&mut self, ctx: &egui::Context) {
         self.is_expanded = false;
         ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(160.0, 52.0)));
+        if self.always_on_top {
+            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::AlwaysOnTop));
+        }
     }
 }
 
 impl eframe::App for ClipStashApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+
+
         // Periodically monitor clipboard changes
         ctx.request_repaint_after(Duration::from_millis(500));
+
+
+        // Enforce AlwaysOnTop window level every frame if enabled
+        if self.always_on_top {
+            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::AlwaysOnTop));
+        }
 
         // Check if external clipboard changed
         if self.monitor.has_changed() {
             if let Some(content) = self.monitor.last_content() {
-                if self.history.add_entry(content.to_string()) {
+                if self.is_paused {
+                    // Incognito mode — skip all recording
+                } else if let Some(matched) = sensitive::detect_sensitive(content) {
+                    // Sensitive content detected — skip recording
+                    self.sensitive_skipped += 1;
+                    self.toast = Some((
+                        format!("🔒 Skipped: {} detected", matched.label()),
+                        Instant::now(),
+                    ));
+                } else if self.history.add_entry(content.to_string()) {
                     let _ = self.history.save(&self.history_path);
                 }
             }
@@ -169,11 +199,17 @@ impl eframe::App for ClipStashApp {
                             })
                             .response;
 
-                        if resp.clicked() || ui.button("✨ Expand").clicked() {
+                        // Allow dragging the bubble anywhere on screen like a mobile chat head
+                        let response = ui.interact(resp.rect, ui.id(), egui::Sense::click_and_drag());
+                        if response.drag_started() || response.dragged() {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
+                        }
+
+                        if response.clicked() || ui.button("✨ Expand").clicked() {
                             self.expand(ctx);
                         }
 
-                        resp.on_hover_text("Click to expand ClipStash clipboard history");
+                        response.on_hover_text("Click to expand, or drag to move bubble");
                     });
                 });
             return;
@@ -198,6 +234,26 @@ impl eframe::App for ClipStashApp {
                         // Collapse to Bubble Button
                         if ui.button(egui::RichText::new("➖ Bubble").small()).clicked() {
                             self.collapse_to_bubble(ctx);
+                        }
+
+                        // Incognito / Pause toggle
+                        let pause_label = if self.is_paused {
+                            "🔓 Resume"
+                        } else {
+                            "🔒 Pause"
+                        };
+                        let pause_color = if self.is_paused {
+                            egui::Color32::from_rgb(248, 113, 113) // red when paused
+                        } else {
+                            egui::Color32::from_rgb(230, 235, 245)
+                        };
+                        if ui.button(egui::RichText::new(pause_label).small().color(pause_color)).clicked() {
+                            self.is_paused = !self.is_paused;
+                            if self.is_paused {
+                                self.toast = Some(("🔒 Recording paused — copies won't be saved".to_string(), Instant::now()));
+                            } else {
+                                self.toast = Some(("🔓 Recording resumed".to_string(), Instant::now()));
+                            }
                         }
 
                         // Always-on-top toggle
@@ -290,6 +346,7 @@ impl eframe::App for ClipStashApp {
                         {
                             self.clear_unpinned();
                         }
+
                     });
                 });
             });

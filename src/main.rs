@@ -1,6 +1,7 @@
 mod clipboard;
 mod cli;
 mod gui;
+mod sensitive;
 mod storage;
 
 
